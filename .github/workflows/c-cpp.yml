@@ -8,16 +8,25 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
-    - name: install meson and ninja
-      run: python3 -m pip install --user meson ninja
-    - name: configure
-      run: meson setup build
-    - name: make
-      run: meson compile -C build
-    - name: make check
-      run: meson test -C build --print-errorlogs
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y bash build-essential python2 python3 diffutils gcc
+
+      - name: install meson and ninja
+        run: python3 -m pip install --user meson ninja
+
+      - name: configure
+        run: meson setup build
+
+      - name: make
+        run: meson compile -C build
+
+      - name: make check
+        run: meson test -C build --print-errorlogs
+
+      - name: Show e2e summary log
+        if: failure()
+        run: cat build/meson-logs/testlog.txt || true
