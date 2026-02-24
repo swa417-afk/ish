@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: IAM role to allow GitHub Actions (OIDC) to push to ECR for Astrid
+
+Parameters:
+  AwsAccountId:
+    Type: String
+    Description: AWS account ID that owns the OIDC provider and IAM role.
+  GitHubOrgOrUser:
+    Type: String
+    Description: GitHub organization or user that owns the repository.
+  GitHubRepository:
+    Type: String
+    Default: astrid
+    Description: GitHub repository name.
+
+Resources:
+  AstridGitHubOidcRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: GitHubActions-astrid-ECR-Role
+      Description: Allows GitHub Actions workflow in astrid to push and pull images to and from ECR using OIDC
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:aws:iam::${AwsAccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubOrgOrUser}/${GitHubRepository}:*
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+      Policies:
+        - PolicyName: ECRPushPullPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:CompleteLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:PutImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:BatchGetImage
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:ListImages
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - sts:GetServiceBearerToken
+                Resource: '*'
+
+Outputs:
+  RoleArn:
+    Description: ARN of IAM Role for GitHub Actions OIDC (Astrid)
+    Value: !GetAtt AstridGitHubOidcRole.Arn
